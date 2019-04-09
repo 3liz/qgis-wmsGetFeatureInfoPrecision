@@ -1,7 +1,7 @@
 [general]
 name=QGIS Server WMS GetFeatureInfo Precision
-qgisMinimumVersion=2.10
-qgisMaximumVersion=2.99
+qgisMinimumVersion=3.4
+#qgisMaximumVersion=
 description=Set WMS GetFeatureInfo Precision
 version=1.0
 author=DHONT René-Luc (3Liz)

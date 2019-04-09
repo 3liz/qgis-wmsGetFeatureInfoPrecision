@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 ***************************************************************************
     wmsGetFeatureInfoPrecision.py
@@ -22,13 +20,14 @@ __date__ = 'April 2016'
 __copyright__ = '(C) 2016, DHONT René-Luc - 3Liz'
 
 # Import the PyQt and QGIS libraries
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
-from qgis.core import *
-from qgis.server import *
+from qgis.core import Qgis, QgsMessageLog
+from qgis.server import QgsServerFilter
+from qgis.PyQt.QtCore import QCoreApplication, QObject
+from qgis.PyQt.QtWidgets import QAction, QMessageBox
 
 import os.path
-import ConfigParser
+from pathlib import Path
+from configparser import ConfigParser
 
 FI_POINT_TOLERANCE = 16
 FI_LINE_TOLERANCE = 8
@@ -40,11 +39,18 @@ class ServerGetFeatureInfoPrecisionFilter(QgsServerFilter):
         request = self.serverInterface().requestHandler()
         params = request.parameterMap( )
         if params.get('SERVICE', '').lower() == 'wms' \
-                and params.get('REQUEST', '').lower() == 'getfeatureinfo':
+            and params.get('REQUEST', '').lower() == 'getfeatureinfo':
+
             # Test config file
-            if os.path.exists(os.path.join(os.path.dirname(os.path.realpath(__file__)),'config.cfg')):
-                config = ConfigParser.ConfigParser()
-                config.read(os.path.join(os.path.dirname(os.path.realpath(__file__)),'config.cfg'))
+            # Check with project path
+            configpath = Path(self.serverInterface.configFilePath()).parent / 'featureInfoPrecision.cfg'
+            if not configpath.exists():
+                # Check for configpath locally
+                configpath = Path(__file__).resolve().parent / 'config.cfg'
+
+            if configpath.exists():
+                config = ConfigParser()
+                config.read(str(configpath))
 
                 pointTolerance = config.get('default','FI_POINT_TOLERANCE',str(FI_POINT_TOLERANCE))
                 request.setParameter('FI_POINT_TOLERANCE', str(pointTolerance))
@@ -55,8 +61,8 @@ class ServerGetFeatureInfoPrecisionFilter(QgsServerFilter):
                 polygonTolerance = config.get('default', 'FI_POLYGON_TOLERANCE', str(FI_POLYGON_TOLERANCE))
                 request.setParameter('FI_POLYGON_TOLERANCE', str(polygonTolerance))
             else:
-                request.setParameter('FI_POINT_TOLERANCE', str(FI_POINT_TOLERANCE))
-                request.setParameter('FI_LINE_TOLERANCE', str(FI_LINE_TOLERANCE))
+                request.setParameter('FI_POINT_TOLERANCE'  , str(FI_POINT_TOLERANCE))
+                request.setParameter('FI_LINE_TOLERANCE'   , str(FI_LINE_TOLERANCE))
                 request.setParameter('FI_POLYGON_TOLERANCE', str(FI_POLYGON_TOLERANCE))
 
 
@@ -67,11 +73,7 @@ class ServerGetFeatureInfoPrecision:
     def __init__(self, serverIface):
         # Save reference to the QGIS server interface
         self.serverIface = serverIface
-        try:
-            self.serverIface.registerFilter(ServerGetFeatureInfoPrecisionFilter(serverIface), 1000)
-        except Exception, e:
-            QgsLogger.debug("ServerGetFeatureInfoPrecision- Error loading filter %s", e)
-
+        self.serverIface.registerFilter(ServerGetFeatureInfoPrecisionFilter(serverIface), 1000)
 
 
 class GetFeatureInfoPrecision:
@@ -98,6 +100,3 @@ class GetFeatureInfoPrecision:
         QMessageBox.information(self.iface.mainWindow(), QCoreApplication.translate('GetFeatureInfoPrecision', "Server GetFeatureInfoPrecision"), QCoreApplication.translate('GetFeatureInfoPrecision', "Server GetFeatureInfoPrecision is a simple plugin for QGIS Server, it does just nothing in QGIS Desktop. See: <a href=\"https://github.com/3liz/qgis-wmsGetFeatureInfoPrecision\">plugin's homepage</a>"))
 
 
-
-if __name__ == "__main__":
-    pass
