@@ -30,6 +30,6 @@ test:
 		-v $$(pwd)/.local:/.local \
 		-v $(LOCAL_HOME)/.cache:/.cache \
 		-e PIP_CACHE_DIR=/.cache \
-		-e PYTEST_ADDOPTS="$(TEST_OPTS)" \
+		-e PYTEST_ADDOPTS="$(PYTEST_ADDOPTS)" \
 		$(QGIS_IMAGE) ./run-tests.sh --qgis-plugins=/plugins
 

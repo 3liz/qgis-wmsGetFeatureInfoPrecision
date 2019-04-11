@@ -6,11 +6,12 @@ import configparser
 import logging
 import json
 import traceback
+import lxml.etree
 
 logging.basicConfig( stream=sys.stderr )
 logging.disable(logging.NOTSET)
 
-LOGGER = logging.getLogger('wmsGetLegendGraphicTitle')
+LOGGER = logging.getLogger('wmsgetfeatureinfoprecision')
 LOGGER.setLevel(logging.DEBUG)
 
 from typing import (Union, Any, Mapping, Dict, Generator, 
@@ -66,21 +67,27 @@ def pytest_sessionfinish(session, exitstatus):
     del qgis_application
 
 
-# Define a *very* loosy jsonon type
-JsonType = Union[List[Any],Dict[str,Any]]
-
-
 class _Response:
     """ QgsBufferServerResponse wrapper
     """
-    def __init__(self, resp: QgsBufferServerResponse) -> None:
+    def __init__(self, resp: QgsBufferServerResponse, req: QgsBufferServerRequest) -> None:
         self._resp = resp
-        self._json = None
+        self._req  = req
+        self._xml = None
 
-    def json(self) -> JsonType:
-        if self._json is None and self._resp.headers().get('Content-Type','').find('application/json')==0:
-            self._json = json.loads(self.content.decode('utf-8'))
-        return self._json
+    @property
+    def response(self):
+        return self._resp
+
+    @property
+    def request(self):
+        return self._req
+
+    @property
+    def xml(self) -> 'xml':
+        if self._xml is None and self._resp.headers().get('Content-Type','').find('text/xml')==0:
+            self._xml = lxml.etree.fromstring(self.content.decode('utf-8'))
+        return self._xml
 
     @property
     def content(self) -> bytes:
@@ -115,7 +122,7 @@ def client(request):
             return server_plugins.get(name)
 
         def getprojectpath(self, name: str) -> str:
-            return self.datapath.join(name)
+            return self.datapath.join(name).strpath
 
         def get(self, query: str, project: str=None) -> _Response:
             """ Return server response from query
@@ -129,8 +136,10 @@ def client(request):
                     raise ValueError("Error reading project '%s':" % projectpath.strpath)
             else:
                 qgsproject = None
+            # See https://github.com/qgis/QGIS/pull/9773
+            self.server.serverInterface().setConfigFilePath(qgsproject.fileName())
             self.server.handleRequest(request, response, project=qgsproject)
-            return _Response(response)
+            return _Response(response,request)
 
     return _Client()
 
